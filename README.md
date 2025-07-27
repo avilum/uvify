@@ -1,7 +1,10 @@
 # Uvify
 Turn python repositories to `uv` environments and oneliners, without diving into the code.<br>
-- Generates oneliners for setting up python environment from pypi / from soure, and lists the dependencies. 
-- It works based on: `requirements.txt`, `pyproject.toml` or `setup.py`, recursively.
+- Generates oneliners for quick python environment setup
+- Helps with migration to `uv` for faster builds in CI/CD
+- It works on existing projects based on: `requirements.txt`, `pyproject.toml` or `setup.py`, recursively.
+  - Supports local directories.
+  - Supports GitHub links using <a href="https://gitingest.com/">Git Ingest</a>.
 - It's fast!
  
 > uv is by far the fastest python and package manager. 
@@ -9,10 +12,15 @@ Turn python repositories to `uv` environments and oneliners, without diving into
 
 <i>Source: https://github.com/astral-sh/uv</i>
 
+
 ## Command Line: Using uvify CLI locally
 You can run uvify with uv. <br>
 Let's generate oneliners for a virtual environment that has `requests` installed, using PyPi or from source:
 ```shell
+# Run on a local directory
+uv run --with uvify uvify . | jq
+
+# Run on requests
 uv run --with uvify uvify https://github.com/psf/requests | jq
 # or:
 # uv run --with uvify uvify psf/requests | jq
@@ -118,5 +126,4 @@ curl http://0.0.0.0:8000/psf/requests | jq
 ```
 
 # Special Thanks 
-I chose to use <a href="https://gitingest.com/">GitIngest</a> behind the scenes.
 Thanks to the UV team and Astral for this amazing tool.

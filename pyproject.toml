@@ -3,10 +3,14 @@ name = "uvify"
 authors = [
     { name="Avi Lumelsky", email="avilum+gh@protonmail.com" }
 ]
-version = "0.1.2"
+version = "0.1.3"
 description = "Get one-liner commands for faster python environment uv python manager."
 readme = "README.md"
 requires-python = ">=3.10"
+license = { file = "LICENSE" }
+urls = { homepage = "https://github.com/avilum/uvify" }
+keywords = ["uv", "python", "environment", "uvify", "virtualenv", "pip", "poetry", "venv"]
+
 dependencies = [
     "gitingest>=0.1.5",
     "toml>=0.10.2",
