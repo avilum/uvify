@@ -101,6 +101,9 @@ uv venv
 uv sync --dev --extra api
 uv run pytest
 
+# Run linter before PR 
+./lint.sh
+
 # Install editable version locally
 uv run pip install --editable .
 uv run python -m src.uvify --help

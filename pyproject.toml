@@ -1,0 +1,29 @@
+[project]
+name = "uvify"
+authors = [
+    { name="Avi Lumelsky", email="avilum+gh@protonmail.com" }
+]
+version = "0.1.2"
+description = "Get one-liner commands for faster python environment uv python manager."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gitingest>=0.1.5",
+    "toml>=0.10.2",
+    "typer>=0.12.3",
+    "rich>=13.7.1",
+]
+
+[project.optional-dependencies]
+api = [
+    "fastapi>=0.111.0",
+    "uvicorn>=0.29.0",
+]
+
+[project.scripts]
+uvify = "uvify:cli"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]
