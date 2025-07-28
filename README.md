@@ -22,12 +22,12 @@ You can run uvify with uv. <br>
 Let's generate oneliners for a virtual environment that has `requests` installed, using PyPi or from source:
 ```shell
 # Run on a local directory
-uv run --with uvify uvify . | jq
+uvx uvify . | jq
 
 # Run on requests
-uv run --with uvify uvify https://github.com/psf/requests | jq
+uvx uvify https://github.com/psf/requests | jq
 # or:
-# uv run --with uvify uvify psf/requests | jq
+# uvx uvify psf/requests | jq
 
 [
   ...
