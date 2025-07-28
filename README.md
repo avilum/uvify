@@ -1,19 +1,22 @@
 # Uvify
 Turn python repositories to `uv` environments and oneliners, without diving into the code.<br>
+
+[![Star History Chart](https://api.star-history.com/svg?repos=avilum/uvify&type=Date)](https://www.star-history.com/#avilum/uvify&Date)
+
 - Generates oneliners for quick python environment setup
 - Helps with migration to `uv` for faster builds in CI/CD
 - It works on existing projects based on: `requirements.txt`, `pyproject.toml` or `setup.py`, recursively.
   - Supports local directories.
   - Supports GitHub links using <a href="https://gitingest.com/">Git Ingest</a>.
 - It's fast!
- 
+
+
+## Command Line: Using uvify CLI locally
 > uv is by far the fastest python and package manager. 
 <img src="assets/image.png">
 
 <i>Source: https://github.com/astral-sh/uv</i>
 
-
-## Command Line: Using uvify CLI locally
 You can run uvify with uv. <br>
 Let's generate oneliners for a virtual environment that has `requests` installed, using PyPi or from source:
 ```shell
