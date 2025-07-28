@@ -8,11 +8,14 @@ Turn python repositories to `uv` environments and oneliners, without diving into
   - Supports GitHub links using <a href="https://gitingest.com/">Git Ingest</a>.
 - It's fast!
 
+## Prerequisites
+| <a href="https://github.com/astral-sh/uv?tab=readme-ov-file#installation">uv</a>
+
 ## Demo
 https://huggingface.co/spaces/avilum/uvify
 
 [![Star History Chart](https://api.star-history.com/svg?repos=avilum/uvify&type=Date)](https://www.star-history.com/#avilum/uvify&Date)
- 
+
 > uv is by far the fastest python and package manager. 
 <img src="assets/image.png">
 

@@ -3,7 +3,7 @@ name = "uvify"
 authors = [
     { name="Avi Lumelsky", email="avilum+gh@protonmail.com" }
 ]
-version = "0.1.3"
+version = "0.1.4"
 description = "Get one-liner commands for faster python environment uv python manager."
 readme = "README.md"
 requires-python = ">=3.10"
