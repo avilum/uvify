@@ -1,4 +1,7 @@
 # Uvify
+
+[![PyPI version](https://img.shields.io/pypi/v/uvify.svg)](https://pypi.org/project/uvify/)
+
 Turn python repositories to `uv` environments and oneliners, without diving into the code.<br>
 
 - Generates oneliners for quick python environment setup
