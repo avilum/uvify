@@ -84,6 +84,57 @@ uvify psf/requests | jq '.[].dependencies'
 ]
 ```
 
+## Filtering Options
+
+Uvify supports filtering which files to analyze using include and exclude patterns with glob syntax.
+
+### Exclude directories from analysis
+
+Skip test directories and any paths matching the pattern:
+```bash
+uvify --exclude "tests/*" --exclude "test_*" my-project/
+```
+
+### Include only specific directories
+
+Analyze only files in the `src/` directory:
+```bash
+uvify --include "src/*" my-project/
+```
+
+Analyze only a specific subdirectory:
+```bash
+uvify --include "src/my_app/*" my-project/
+```
+
+### Combine include and exclude patterns
+
+Include everything in `src/` but exclude test files:
+```bash
+uvify --include "src/*" --exclude "*/test_*" --exclude "*/tests/*" my-project/
+```
+
+### GitHub repositories with filtering
+
+The filtering also works with GitHub repositories:
+```bash
+# Exclude test directories from a GitHub repo
+uvify --exclude "tests/*" psf/requests
+
+# Only analyze specific subdirectories  
+uvify --include "src/*" --include "lib/*" myorg/myrepo
+```
+
+### Pattern Examples
+
+- `tests/*` - Excludes any directory named "tests" and all its contents
+- `test_*` - Excludes any file or directory starting with "test_"  
+- `*/tests/*` - Excludes "tests" directories at any depth
+- `src/my_app/*` - Includes only files within the "src/my_app/" directory
+- `*.py` - Includes only Python files
+
+**Note:** By default, uvify scans all directories for `requirements.txt`, `pyproject.toml`, and `setup.py` files. The include/exclude patterns filter which of these files to analyze based on their path.
+
 ## Uvify HTTP Server: Using uvify with client/server architecture instead of SDK
 
 First, install uvify with the optional API dependencies:

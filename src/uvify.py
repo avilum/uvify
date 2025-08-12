@@ -13,6 +13,7 @@ import urllib.parse
 import toml
 from pathlib import Path as PathLib
 import ast
+import fnmatch
 
 # Optional FastAPI imports
 try:
@@ -319,6 +320,21 @@ def extract_package_name_from_pyproject_toml(content: str) -> str:
     return None
 
 
+def should_include_path(path: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> bool:
+    """Check if a path should be included based on include/exclude patterns."""
+    # If include patterns are specified, path must match at least one
+    if include_patterns:
+        if not any(fnmatch.fnmatch(path, pattern) for pattern in include_patterns):
+            return False
+    
+    # If exclude patterns are specified, path must not match any
+    if exclude_patterns:
+        if any(fnmatch.fnmatch(path, pattern) for pattern in exclude_patterns):
+            return False
+    
+    return True
+
+
 def detect_project_source(source: str) -> tuple[str, bool]:
     """Detect if the source is a GitHub repo or a local directory.
     Returns (normalized_source, is_github)
@@ -338,7 +354,7 @@ def detect_project_source(source: str) -> tuple[str, bool]:
     return source, False
 
 
-def extract_project_files_multi(source: str, is_github: bool) -> list[dict]:
+def extract_project_files_multi(source: str, is_github: bool, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> list[dict]:
     """Extract all relevant files and their parsed info from a repo or local dir.
 
     [
@@ -419,14 +435,24 @@ def extract_project_files_multi(source: str, is_github: bool) -> list[dict]:
                             content_dict[current_file] = file_content
 
                     # print(f"\nFound {len(content_dict)} relevant files: {list(content_dict.keys())}")
-                    files_content = content_dict
+                    
+                    # Apply include/exclude filtering for GitHub repos
+                    if include_patterns or exclude_patterns:
+                        filtered_content = {}
+                        for file_path, content in content_dict.items():
+                            if should_include_path(file_path, include_patterns, exclude_patterns):
+                                filtered_content[file_path] = content
+                        files_content = filtered_content
+                    else:
+                        files_content = content_dict
                 else:
                     # Handle case where content is already a dict
                     # print("Content is a dict, processing directly")
                     for k, v in content.items():
                         if any(k.endswith(fname) for fname in RELEVANT_FILES):
-                            # print(f"Found relevant file in dict: {k}")
-                            files_content[k] = v
+                            if should_include_path(k, include_patterns, exclude_patterns):
+                                # print(f"Found relevant file in dict: {k}")
+                                files_content[k] = v
     else:
         dir_path = PathLib(source).resolve()
         if not dir_path.exists() or not dir_path.is_dir():
@@ -436,8 +462,10 @@ def extract_project_files_multi(source: str, is_github: bool) -> list[dict]:
                 if fname in RELEVANT_FILES:
                     file_path = os.path.join(root, fname)
                     rel_path = os.path.relpath(file_path, dir_path)
-                    with open(file_path, "r") as f:
-                        files_content[rel_path] = f.read()
+                    # Apply include/exclude filtering for local directories
+                    if should_include_path(rel_path, include_patterns, exclude_patterns):
+                        with open(file_path, "r") as f:
+                            files_content[rel_path] = f.read()
 
     # parse each file
     for rel_path, file_content in files_content.items():
@@ -524,9 +552,9 @@ def extract_project_files_multi(source: str, is_github: bool) -> list[dict]:
     return found_files
 
 
-def _analyze_repo_logic(source: str) -> list[dict]:
+def _analyze_repo_logic(source: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> list[dict]:
     normalized_source, is_github = detect_project_source(source)
-    return extract_project_files_multi(normalized_source, is_github)
+    return extract_project_files_multi(normalized_source, is_github, include_patterns, exclude_patterns)
 
 
 @cli.callback(invoke_without_command=True)
@@ -538,6 +566,20 @@ def main(
             help="GitHub repository (owner/repo or URL) or path to local directory"
         ),
     ] = None,
+    include: Annotated[
+        list[str],
+        typer.Option(
+            "--include",
+            help="Include only paths matching these patterns (glob syntax). Can be used multiple times."
+        ),
+    ] = None,
+    exclude: Annotated[
+        list[str],
+        typer.Option(
+            "--exclude", 
+            help="Exclude paths matching these patterns (glob syntax). Can be used multiple times."
+        ),
+    ] = None,
 ):
     """Analyze a GitHub repository or local directory to generate uv commands."""
     if ctx.invoked_subcommand is None:
@@ -545,7 +587,7 @@ def main(
             print("Error: Repository name is required", file=sys.stderr)
             raise typer.Exit(1)
         try:
-            result = _analyze_repo_logic(repo_name)
+            result = _analyze_repo_logic(repo_name, include_patterns=include, exclude_patterns=exclude)
             print(json.dumps(result, indent=4))
             return result
         except ValueError as e:
@@ -587,9 +629,13 @@ if FASTAPI_AVAILABLE:
             ...,
             description="GitHub repository (owner/repo or URL) or path to local directory",
         ),
+        include: str = None,
+        exclude: str = None,
     ):
         try:
-            return _analyze_repo_logic(repo_name)
+            include_patterns = include.split(",") if include else None
+            exclude_patterns = exclude.split(",") if exclude else None
+            return _analyze_repo_logic(repo_name, include_patterns=include_patterns, exclude_patterns=exclude_patterns)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
