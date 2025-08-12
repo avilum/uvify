@@ -29,6 +29,7 @@ jobs:
       - name: Build release distributions
         run: |
           # NOTE: put your own distribution build steps here.
+          curl -LsSf https://astral.sh/uv/install.sh | sh
           uv build
 
       - name: Upload distributions
