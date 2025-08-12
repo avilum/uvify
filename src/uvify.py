@@ -148,6 +148,41 @@ def parse_requirements_txt(content: str) -> list[str]:
     return deps
 
 
+def clean_dependency_string(spec: str) -> str:
+    """Normalize a dependency spec from pyproject to a clean package string.
+
+    - Preserves direct URL specs ("name @ git+https://...")
+    - Preserves extras (e.g., "package[extra]")
+    - Removes environment markers ("; python_version < '3.11'")
+    - Removes parenthesized version blocks (" (>=1.0,<2.0)")
+    - Removes inline version specifiers after the name (">=", "==", etc.)
+    """
+    if spec is None:
+        return ""
+    dep = spec.strip()
+
+    # If direct URL dependency (PEP 508), keep as-is (trimmed)
+    if " @ " in dep:
+        # Also remove any markers after ';'
+        dep = dep.split(";", 1)[0].strip()
+        return dep
+
+    # Strip environment markers
+    dep = dep.split(";", 1)[0].strip()
+
+    # Remove parenthesized version constraints like " (>=1.2,<2.0)"
+    dep = re.sub(r"\s*\(.*?\)", "", dep)
+
+    # If any remaining inline version specifiers, strip everything after the name
+    if re.search(VERSION_SPECIFIERS_PATTERN, dep):
+        dep = re.split(VERSION_SPECIFIERS_PATTERN, dep)[0]
+
+    # Collapse whitespace
+    dep = re.sub(r"\s+", " ", dep).strip()
+
+    return dep
+
+
 # Helper to extract dependencies from pyproject.toml
 
 
@@ -166,7 +201,7 @@ def parse_pyproject_toml(content: str) -> list[str]:
             poetry_deps = data[TOML_TOOL_KEY][TOML_POETRY_KEY][TOML_DEPENDENCIES_KEY]
             deps.extend(
                 [
-                    dep
+                    clean_dependency_string(dep)
                     for dep in poetry_deps.keys()
                     if dep != TOML_PYTHON_KEY  # Skip python version requirement
                 ]
@@ -179,13 +214,18 @@ def parse_pyproject_toml(content: str) -> list[str]:
             if isinstance(project_deps, list):
                 deps.extend(
                     [
-                        re.split(VERSION_SPECIFIERS_PATTERN, dep)[0].strip()
+                        clean_dependency_string(dep)
                         for dep in project_deps
+                        if isinstance(dep, str)
                     ]
                 )
             elif isinstance(project_deps, dict):
                 deps.extend(
-                    [dep for dep in project_deps.keys() if dep != TOML_PYTHON_KEY]
+                    [
+                        clean_dependency_string(dep)
+                        for dep in project_deps.keys()
+                        if dep != TOML_PYTHON_KEY
+                    ]
                 )
 
         # Handle build-system requires
@@ -196,8 +236,9 @@ def parse_pyproject_toml(content: str) -> list[str]:
             build_deps = data[TOML_BUILD_SYSTEM_KEY][TOML_REQUIRES_KEY]
             deps.extend(
                 [
-                    re.split(VERSION_SPECIFIERS_PATTERN, dep)[0].strip()
+                    clean_dependency_string(dep)
                     for dep in build_deps
+                    if isinstance(dep, str)
                 ]
             )
 
@@ -205,7 +246,9 @@ def parse_pyproject_toml(content: str) -> list[str]:
         # print(f"Error parsing pyproject.toml: {e}")
         return []
 
-    return list(set(deps))  # Remove duplicates
+    # Remove duplicates and empties
+    deps = [d for d in set(deps) if d]
+    return deps  # Remove duplicates
 
 
 # Helper to extract dependencies from setup.py
@@ -320,18 +363,20 @@ def extract_package_name_from_pyproject_toml(content: str) -> str:
     return None
 
 
-def should_include_path(path: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> bool:
+def should_include_path(
+    path: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None
+) -> bool:
     """Check if a path should be included based on include/exclude patterns."""
     # If include patterns are specified, path must match at least one
     if include_patterns:
         if not any(fnmatch.fnmatch(path, pattern) for pattern in include_patterns):
             return False
-    
+
     # If exclude patterns are specified, path must not match any
     if exclude_patterns:
         if any(fnmatch.fnmatch(path, pattern) for pattern in exclude_patterns):
             return False
-    
+
     return True
 
 
@@ -354,7 +399,12 @@ def detect_project_source(source: str) -> tuple[str, bool]:
     return source, False
 
 
-def extract_project_files_multi(source: str, is_github: bool, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> list[dict]:
+def extract_project_files_multi(
+    source: str,
+    is_github: bool,
+    include_patterns: list[str] = None,
+    exclude_patterns: list[str] = None,
+) -> list[dict]:
     """Extract all relevant files and their parsed info from a repo or local dir.
 
     [
@@ -435,12 +485,14 @@ def extract_project_files_multi(source: str, is_github: bool, include_patterns: 
                             content_dict[current_file] = file_content
 
                     # print(f"\nFound {len(content_dict)} relevant files: {list(content_dict.keys())}")
-                    
+
                     # Apply include/exclude filtering for GitHub repos
                     if include_patterns or exclude_patterns:
                         filtered_content = {}
                         for file_path, content in content_dict.items():
-                            if should_include_path(file_path, include_patterns, exclude_patterns):
+                            if should_include_path(
+                                file_path, include_patterns, exclude_patterns
+                            ):
                                 filtered_content[file_path] = content
                         files_content = filtered_content
                     else:
@@ -450,7 +502,9 @@ def extract_project_files_multi(source: str, is_github: bool, include_patterns: 
                     # print("Content is a dict, processing directly")
                     for k, v in content.items():
                         if any(k.endswith(fname) for fname in RELEVANT_FILES):
-                            if should_include_path(k, include_patterns, exclude_patterns):
+                            if should_include_path(
+                                k, include_patterns, exclude_patterns
+                            ):
                                 # print(f"Found relevant file in dict: {k}")
                                 files_content[k] = v
     else:
@@ -463,7 +517,9 @@ def extract_project_files_multi(source: str, is_github: bool, include_patterns: 
                     file_path = os.path.join(root, fname)
                     rel_path = os.path.relpath(file_path, dir_path)
                     # Apply include/exclude filtering for local directories
-                    if should_include_path(rel_path, include_patterns, exclude_patterns):
+                    if should_include_path(
+                        rel_path, include_patterns, exclude_patterns
+                    ):
                         with open(file_path, "r") as f:
                             files_content[rel_path] = f.read()
 
@@ -552,9 +608,13 @@ def extract_project_files_multi(source: str, is_github: bool, include_patterns: 
     return found_files
 
 
-def _analyze_repo_logic(source: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None) -> list[dict]:
+def _analyze_repo_logic(
+    source: str, include_patterns: list[str] = None, exclude_patterns: list[str] = None
+) -> list[dict]:
     normalized_source, is_github = detect_project_source(source)
-    return extract_project_files_multi(normalized_source, is_github, include_patterns, exclude_patterns)
+    return extract_project_files_multi(
+        normalized_source, is_github, include_patterns, exclude_patterns
+    )
 
 
 @cli.callback(invoke_without_command=True)
@@ -570,14 +630,14 @@ def main(
         list[str],
         typer.Option(
             "--include",
-            help="Include only paths matching these patterns (glob syntax). Can be used multiple times."
+            help="Include only paths matching these patterns (glob syntax). Can be used multiple times.",
         ),
     ] = None,
     exclude: Annotated[
         list[str],
         typer.Option(
-            "--exclude", 
-            help="Exclude paths matching these patterns (glob syntax). Can be used multiple times."
+            "--exclude",
+            help="Exclude paths matching these patterns (glob syntax). Can be used multiple times.",
         ),
     ] = None,
 ):
@@ -587,7 +647,9 @@ def main(
             print("Error: Repository name is required", file=sys.stderr)
             raise typer.Exit(1)
         try:
-            result = _analyze_repo_logic(repo_name, include_patterns=include, exclude_patterns=exclude)
+            result = _analyze_repo_logic(
+                repo_name, include_patterns=include, exclude_patterns=exclude
+            )
             print(json.dumps(result, indent=4))
             return result
         except ValueError as e:
@@ -635,7 +697,11 @@ if FASTAPI_AVAILABLE:
         try:
             include_patterns = include.split(",") if include else None
             exclude_patterns = exclude.split(",") if exclude else None
-            return _analyze_repo_logic(repo_name, include_patterns=include_patterns, exclude_patterns=exclude_patterns)
+            return _analyze_repo_logic(
+                repo_name,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+            )
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e))
 
